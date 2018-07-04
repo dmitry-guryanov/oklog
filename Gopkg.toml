@@ -50,3 +50,7 @@
 [[constraint]]
   name = "github.com/rs/cors"
   version = "1.2.0"
+
+[[constraint]]
+  branch = "master"
+  name = "github.com/valyala/gozstd"
