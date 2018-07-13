@@ -49,6 +49,7 @@ func runIngestStore(args []string) error {
 		segmentReplicationFactor = flagset.Int("store.segment-replication-factor", defaultStoreSegmentReplicationFactor, "how many copies of each segment to replicate")
 		segmentRetain            = flagset.Duration("store.segment-retain", defaultStoreSegmentRetain, "retention period for segment files")
 		segmentPurge             = flagset.Duration("store.segment-purge", defaultStoreSegmentPurge, "purge deleted segment files after this long")
+		compactDelay             = flagset.Duration("store.compact-delay", defaultStoreCompactDelay, "delay between compact activations")
 		uiLocal                  = flagset.Bool("ui.local", false, "ignore embedded files and go straight to the filesystem")
 		filesystem               = flagset.String("filesystem", defaultFilesystem, "real, virtual, nop")
 		compression              = flagset.String("compression", "", "gzip, zstd")
@@ -474,6 +475,7 @@ func runIngestStore(args []string) error {
 			*segmentTargetSize,
 			*segmentRetain,
 			*segmentPurge,
+			*compactDelay,
 			compactDuration,
 			compactBytesWritten,
 			trashedSegments,

@@ -17,6 +17,7 @@ type Compacter struct {
 	segmentTargetSize int64
 	retain            time.Duration
 	purge             time.Duration
+	delay             time.Duration
 	stop              chan chan struct{}
 	compactDuration   *prometheus.HistogramVec
 	compactBytesWritten  prometheus.Counter
@@ -29,7 +30,7 @@ type Compacter struct {
 // Don't forget to Run it.
 func NewCompacter(
 	log Log,
-	segmentTargetSize int64, retain time.Duration, purge time.Duration,
+	segmentTargetSize int64, retain time.Duration, purge time.Duration, delay time.Duration,
 	compactDuration *prometheus.HistogramVec, compactBytesWritten prometheus.Counter, trashSegments, purgeSegments *prometheus.CounterVec,
 	reporter EventReporter,
 ) *Compacter {
@@ -38,6 +39,7 @@ func NewCompacter(
 		segmentTargetSize: segmentTargetSize,
 		retain:            retain,
 		purge:             purge,
+		delay:             delay,
 		stop:              make(chan chan struct{}),
 		trashSegments:     trashSegments,
 		purgeSegments:     purgeSegments,
@@ -55,7 +57,7 @@ func (c *Compacter) Run() {
 		func() { c.moveToTrash() },
 		func() { c.emptyTrash() },
 	}
-	ticker := time.NewTicker(time.Second)
+	ticker := time.NewTicker(c.delay)
 	defer ticker.Stop()
 	for {
 		select {
