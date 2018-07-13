@@ -110,6 +110,15 @@ func (p *Peer) Current(t PeerType) []string {
 	return p.d.current(t)
 }
 
+func (p *Peer) Self() string {
+	addr := p.d.byName(p.Name())
+	if addr == "" {
+		panic("Cluster peer for itself is missing")
+	}
+
+	return addr
+}
+
 // Name returns the unique ID of this peer in the cluster.
 func (p *Peer) Name() string {
 	return p.ml.LocalNode().Name
@@ -181,6 +190,15 @@ func (d *delegate) current(t PeerType) (res []string) {
 		}
 	}
 	return res
+}
+
+func (d *delegate) byName(name string) string {
+	info, ok := d.data[name]
+	if !ok {
+		return ""
+	}
+
+	return net.JoinHostPort(info.APIAddr, strconv.Itoa(info.APIPort))
 }
 
 func (d *delegate) state() map[string]peerInfo {
