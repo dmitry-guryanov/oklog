@@ -52,6 +52,7 @@ func runIngestStore(args []string) error {
 		uiLocal                  = flagset.Bool("ui.local", false, "ignore embedded files and go straight to the filesystem")
 		filesystem               = flagset.String("filesystem", defaultFilesystem, "real, virtual, nop")
 		compression              = flagset.String("compression", "", "gzip, zstd")
+		local                    = flagset.Bool("local", false, "Take segments only from local ingestor and replicate only to ourselves. Sets replication-factor to 1.")
 		clusterPeers             = stringslice{}
 	)
 	flagset.Var(&clusterPeers, "peer", "cluster peer host:port (repeatable)")
@@ -440,6 +441,11 @@ func runIngestStore(args []string) error {
 			bulkListener.Close()
 		})
 	}
+
+	if *local {
+		*segmentReplicationFactor = 1
+	}
+
 	for i := 0; i < *segmentConsumers; i++ {
 		c := store.NewConsumer(
 			peer,
@@ -452,6 +458,7 @@ func runIngestStore(args []string) error {
 			consumedBytes,
 			replicatedSegments.WithLabelValues("egress"),
 			replicatedBytes.WithLabelValues("egress"),
+			*local,
 			store.LogReporter{Logger: log.With(logger, "component", "Consumer")},
 		)
 		g.Add(func() error {

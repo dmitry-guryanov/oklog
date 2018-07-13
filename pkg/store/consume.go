@@ -37,6 +37,7 @@ type Consumer struct {
 	consumedBytes      prometheus.Counter
 	replicatedSegments prometheus.Counter
 	replicatedBytes    prometheus.Counter
+	local              bool
 	reporter           EventReporter
 }
 
@@ -51,6 +52,7 @@ func NewConsumer(
 	replicationFactor int,
 	consumedSegments, consumedBytes prometheus.Counter,
 	replicatedSegments, replicatedBytes prometheus.Counter,
+	local bool,
 	reporter EventReporter,
 ) *Consumer {
 	return &Consumer{
@@ -69,6 +71,7 @@ func NewConsumer(
 		consumedBytes:      consumedBytes,
 		replicatedSegments: replicatedSegments,
 		replicatedBytes:    replicatedBytes,
+		local:              local,
 		reporter:           reporter,
 	}
 }
@@ -104,7 +107,12 @@ type stateFn func() stateFn
 func (c *Consumer) gather() stateFn {
 	// A naïve way to break out of the gather loop in atypical conditions.
 	// TODO(pb): this obviously needs more thought and consideration
-	instances := c.peer.Current(cluster.PeerTypeIngest)
+	var instances []string
+	if c.local {
+		instances = []string{c.peer.Self()}
+	} else {
+		instances = c.peer.Current(cluster.PeerTypeIngest)
+	}
 	if c.gatherErrors > 0 && c.gatherErrors > 2*len(instances) {
 		if c.active.Len() <= 0 {
 			// We didn't successfully consume any segments.
@@ -230,10 +238,18 @@ func (c *Consumer) gather() stateFn {
 func (c *Consumer) replicate() stateFn {
 	// Replicate the segment to the cluster.
 	var (
-		peers      = c.peer.Current(cluster.PeerTypeStore)
-		indices    = rand.Perm(len(peers))
+		peers []string
 		replicated = 0
 	)
+
+	if c.local {
+		peers = []string{c.peer.Self()}
+		peers = c.peer.Current(cluster.PeerTypeStore)
+	} else {
+		peers = c.peer.Current(cluster.PeerTypeStore)
+	}
+	indices := rand.Perm(len(peers))
+
 	if want, have := c.replicationFactor, len(peers); have < want {
 		c.reporter.ReportEvent(Event{
 			Op: "replicate", Warning: fmt.Errorf("replication factor %d, available peers %d: replication currently impossible", want, have),
@@ -248,6 +264,7 @@ func (c *Consumer) replicate() stateFn {
 			bodyType = "application/binary"
 			body     = bytes.NewReader(c.active.Bytes())
 		)
+
 		resp, err := c.client.Post(uri, bodyType, body)
 		if err != nil {
 			c.reporter.ReportEvent(Event{

@@ -288,6 +288,7 @@ func runStore(args []string) error {
 			consumedBytes,
 			replicatedSegments.WithLabelValues("egress"),
 			replicatedBytes.WithLabelValues("egress"),
+			false,
 			store.LogReporter{Logger: log.With(logger, "component", "Consumer")},
 		)
 		g.Add(func() error {
